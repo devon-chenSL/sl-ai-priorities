@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Team Priorities</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; background: #F7F6F3; color: #1a1a1a; min-height: 100vh; padding: 24px; font-size: 13px; }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; display: inline; }
+  .badge { background: #E8E6E1; color: #777; border-radius: 10px; font-size: 11px; font-weight: 700; padding: 2px 8px; margin-left: 8px; }
+  .toolbar { display: flex; gap: 8px; align-items: center; margin: 14px 0 4px; }
+  .btn-tool { padding: 5px 13px; border-radius: 7px; border: 1.5px solid #ddd; background: white; font-size: 12px; font-weight: 600; cursor: pointer; color: #555; transition: all 0.15s; }
+  .btn-tool:hover { border-color: #aaa; color: #111; }
+  .sync-status { font-size: 11px; color: #aaa; margin-left: auto; }
+  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
+  .filter-btn { padding: 5px 14px; border-radius: 20px; border: 1.5px solid #ddd; background: white; color: #555; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .filter-btn.active { background: #111; color: white; border-color: #111; }
+  .filter-select { padding: 5px 10px; border-radius: 20px; border: 1.5px solid #ddd; background: white; color: #555; font-size: 12px; font-weight: 600; cursor: pointer; outline: none; appearance: none; padding-right: 24px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23999'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 9px center; }
+  .filter-select.active { border-color: #111; color: #111; }
+  .filter-divider { width: 1px; height: 20px; background: #ddd; margin: 0 2px; }
+  .owner-select { padding: 6px 9px; border: 1.5px solid #ddd; border-radius: 7px; font-size: 12px; font-family: inherit; outline: none; background: white; min-width: 130px; }
+  .owner-select:focus { border-color: #888; }
+  .owner-chip { background: #EEF4FF; color: #3B6FD4; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+  .col-headers { display: grid; gap: 8px; padding: 0 16px; margin-bottom: 6px; }
+  .col-hdr { font-size: 10px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 3px; white-space: nowrap; }
+  .col-hdr:hover { color: #555; }
+  .col-hdr.sort-asc, .col-hdr.sort-desc { color: #111; }
+  .sort-arrow { font-size: 9px; opacity: 0.5; }
+  .col-hdr.sort-asc .sort-arrow, .col-hdr.sort-desc .sort-arrow { opacity: 1; }
+  .list { display: flex; flex-direction: column; gap: 6px; }
+  .item { background: white; border-radius: 9px; border: 1.5px solid #E8E6E1; padding: 10px 16px; }
+  .item-row { display: grid; gap: 8px; align-items: center; }
+  .tag { font-size: 9px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; margin-right: 7px; }
+  .tag-portco   { background: #EEF4FF; color: #3B6FD4; }
+  .tag-internal { background: #F0FFF4; color: #2D8A4E; }
+  .tag-hygiene  { background: #FFF8EC; color: #B5621A; }
+  .tag-diligence { background: #F3EEFF; color: #6B3FA0; }
+  .tier { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+  .tier-p0 { background: #FFF0F0; color: #C0392B; }
+  .tier-p1 { background: #FFF8EC; color: #B5621A; }
+  .tier-p2 { background: #F0FFF4; color: #2D8A4E; }
+  .tier-p3 { background: #F3F3F3; color: #bbb; }
+  .effort-low    { color: #2D8A4E; font-weight: 600; }
+  .effort-medium { color: #B5621A; font-weight: 600; }
+  .effort-high   { color: #C0392B; font-weight: 600; }
+  .discuss-check { width: 18px; height: 18px; cursor: pointer; accent-color: #2563A8; }
+  .discuss-cell { display: flex; align-items: center; justify-content: center; }
+  .row-actions { display: flex; gap: 4px; justify-content: flex-end; }
+  .icon-btn { width: 26px; height: 26px; border-radius: 6px; border: 1px solid #e0e0e0; background: white; cursor: pointer; font-size: 13px; color: #888; display: flex; align-items: center; justify-content: center; }
+  .icon-btn:hover { background: #f5f5f5; }
+  .updated-note { font-size: 10px; color: #bbb; margin-top: 2px; }
+  .add-bar { margin-top: 12px; background: white; border: 1.5px dashed #ccc; border-radius: 10px; padding: 12px 16px; }
+  .add-trigger { font-size: 13px; font-weight: 600; color: #555; cursor: pointer; display: flex; align-items: center; gap: 6px; user-select: none; }
+  .add-trigger:hover { color: #111; }
+  .form-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; margin-bottom: 8px; }
+  input, select { padding: 6px 9px; border: 1.5px solid #ddd; border-radius: 7px; font-size: 12px; font-family: inherit; outline: none; background: white; }
+  input:focus, select:focus { border-color: #888; }
+  .form-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .btn-cancel { padding: 6px 13px; border-radius: 7px; border: 1.5px solid #ddd; background: white; font-size: 12px; font-weight: 600; cursor: pointer; color: #555; }
+  .btn-save { padding: 6px 14px; border-radius: 7px; border: none; background: #111; color: white; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .empty { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
+  .title-strong { font-size: 13px; font-weight: 600; color: #111; }
+  .cell-muted { font-size: 12px; color: #555; }
+  .cell-dash { color: #ddd; }
+  .results-note { font-size: 11px; color: #aaa; margin-bottom: 6px; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #111; color: white; padding: 9px 18px; border-radius: 8px; font-size: 12px; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 999; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div style="margin-bottom:4px;">
+  <h1>Team Priorities</h1><span class="badge" id="badge">0</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-tool" id="btnExport">↓ Export CSV</button>
+  <button class="btn-tool" id="btnRefresh">↻ Refresh</button>
+  <span class="sync-status" id="syncStatus">Connecting to Airtable…</span>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="filter-row" id="filterRow">
+  <button class="filter-btn active" data-filter="all">All</button>
+  <button class="filter-btn" data-filter="portco">Portco</button>
+  <button class="filter-btn" data-filter="internal">Internal</button>
+  <button class="filter-btn" data-filter="diligence">Diligence</button>
+  <button class="filter-btn" data-filter="hygiene">Team Op Model</button>
+  <div class="filter-divider"></div>
+  <select class="filter-select" id="tierFilter">
+    <option value="">All Tiers</option>
+    <option value="p0">P0</option>
+    <option value="p1">P1</option>
+    <option value="p2">P2</option>
+    <option value="p3">P3</option>
+  </select>
+</div>
+<div class="filter-row" id="ownerFilterRow" style="margin-top:-6px;margin-bottom:10px"></div>
+
+<div class="results-note" id="resultsNote"></div>
+<div class="col-headers" id="colHeaders"></div>
+<div class="list" id="itemList"></div>
+
+<div class="add-bar">
+  <div class="add-trigger" id="addTrigger"><span style="font-size:16px">＋</span> Add priority</div>
+  <div id="addForm" style="display:none;">
+    <div class="form-row" id="addFields"></div>
+    <div class="form-actions">
+      <button class="btn-cancel" id="addCancel">Cancel</button>
+      <button class="btn-save" id="addSubmit">Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Airtable config ────────────────────────────────────────────
+// Replace YOUR_AIRTABLE_TOKEN_HERE with your personal access token
+const AT_TOKEN = 'YOUR_AIRTABLE_TOKEN_HERE'; // set your token in .env and paste here locally — never commit the real value
+const AT_BASE  = 'apprts1vjjywz70qe';
+const AT_TABLE = 'tblawpK5U46wsBYwy';
+const AT_URL   = `https://api.airtable.com/v0/${AT_BASE}/${AT_TABLE}`;
+const AT_HEADS = { 'Authorization': `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' };
+
+// ── Constants ──────────────────────────────────────────────────
+const PORTCOS = ["A Place for Mom","A&N","ARIS","Achievers","Airtable","Alchemy","Altera","Ant Group","Australian Professional Leagues","Blackhawk Network","Carta","Casago (formerly Vacasa)","Cegid","Celonis","City Football Group","Clari/Salesloft","Convenience Bee","Cross-Portco: Asset Build","Dell","Diamond Baseball Holdings","ETL","Electronic Arts","Entrata","Equinox Group","EverCommerce","Exact","Facile.it","Fanatics Collectibles","Fanatics, Inc.","First Advantage","G42","Genies","Getir","Global Payments","GoodRx","Groupe Meilleurtaux","Grupo BC","IVC Evidensia","Imagine Learning","Integrity Marketing Group","Iterable","Jio Platforms","Khazna Data Centers","Klarna","LightBox","Madison Square Garden Sports","Mirakl","Mission Pet Health","N-Able","New Zealand Rugby","Noom","Oak View Group","Plaid","ProService","Qualtrics","RAC","Red Ventures","Relativity","Reliance Retail","Shadowbox Studios","Silae","Stripe","TEG","TKO (Endeavor)","TeamSystem","TikTok USDS JV","Unity","Vantage Data Centers","Verily","WME (Endeavor)","WP Engine","Waymo","Xplor","ZPG","Zuora"];
+const OWNERS  = ['Chad','Devon','Dhairya','Marouan','Matthieu','Mike','Stuart','Tesfa'];
+const TYPE_META   = { portco:{cls:'tag-portco',label:'Portco'}, internal:{cls:'tag-internal',label:'Internal'}, diligence:{cls:'tag-diligence',label:'Diligence'}, hygiene:{cls:'tag-hygiene',label:'Team Op Model'} };
+const TIER_META   = { p0:{cls:'tier-p0',label:'P0'}, p1:{cls:'tier-p1',label:'P1'}, p2:{cls:'tier-p2',label:'P2'}, p3:{cls:'tier-p3',label:'P3'} };
+const EFFORT_META = { low:{cls:'effort-low',label:'Low'}, medium:{cls:'effort-medium',label:'Medium'}, high:{cls:'effort-high',label:'High'} };
+const TIER_ORDER   = { p0:0, p1:1, p2:2, p3:3 };
+const EFFORT_ORDER = { high:0, medium:1, low:2 };
+
+// ── State ──────────────────────────────────────────────────────
+let items        = [];
+let currentFilter = 'all';
+let currentTier   = '';
+let currentOwners = new Set();
+let sortCol       = null;
+let sortDir       = 'asc';
+let editingId     = null;
+
+// ── Airtable helpers ───────────────────────────────────────────
+function toAT(item) {
+  return {
+    title:     item.title  || '',
+    portco:    item.portco === '__other__' ? (item.portcoOther||'') : (item.portco||''),
+    owner:     (item.owners||[item.owner]).filter(Boolean).join(', '),
+    type:      item.type   || 'portco',
+    tier:      item.tier   || 'p1',
+    effort:    item.effort || 'medium',
+    discuss:   item.discuss ? true : false,
+    
+  };
+}
+
+function fmtDate(s) {
+  if (!s) return '';
+  const d = new Date(s);
+  return isNaN(d) ? s : d.toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'});
+}
+
+function fromAT(rec) {
+  const f = rec.fields;
+  const ownerStr = f.owner || '';
+  const ownerArr = ownerStr.split(/[;,]/).map(o => o.trim()).filter(Boolean);
+  return {
+    id:          rec.id,
+    _atId:       rec.id,
+    title:       f.title     || '',
+    portco:      f.portco    || '',
+    portcoOther: '',
+    owners:      ownerArr,
+    owner:       ownerStr,
+    type:        f.type      || 'portco',
+    tier:        f.tier      || 'p1',
+    effort:      f.effort    || 'medium',
+    discuss:     f.discuss === true || (typeof f.discuss === 'string' && f.discuss.toLowerCase() === 'yes'),
+    createdAt:   fmtDate(f.createdAt),
+    updatedAt:   fmtDate(f.updatedAt),
+  };
+}
+
+async function atFetch(path, opts = {}) {
+  const r = await fetch(AT_URL + (path||''), { ...opts, headers: AT_HEADS });
+  if (!r.ok) { const t = await r.text(); throw new Error(`Airtable ${r.status}: ${t}`); }
+  return r.json();
+}
+
+// ── Airtable CRUD ──────────────────────────────────────────────
+async function loadFromAirtable() {
+  setSyncStatus('Syncing…');
+  try {
+    let all = [], offset = null;
+    do {
+      const data = await atFetch(offset ? `?offset=${offset}` : '');
+      all = all.concat((data.records || []).map(fromAT));
+      offset = data.offset || null;
+    } while (offset);
+    items = all;
+    document.getElementById('badge').textContent = items.length;
+    setSyncStatus(`Synced · ${items.length} items`);
+    refreshOwnerDropdown();
+    render();
+  } catch(e) {
+    setSyncStatus('Error: ' + e.message);
+  }
+}
+
+async function saveNewToAirtable(item) {
+  setSyncStatus('Saving…');
+  try {
+    const data = await atFetch('', { method: 'POST', body: JSON.stringify({ fields: toAT(item) }) });
+    item._atId = data.id;
+    item.id    = data.id;
+    setSyncStatus('Saved');
+  } catch(e) { setSyncStatus('Save failed: ' + e.message); }
+}
+
+async function updateInAirtable(item) {
+  if (!item._atId) return;
+  setSyncStatus('Saving…');
+  try {
+    await atFetch(`/${item._atId}`, { method: 'PATCH', body: JSON.stringify({ fields: toAT(item) }) });
+    setSyncStatus('Saved');
+  } catch(e) { setSyncStatus('Save failed: ' + e.message); }
+}
+
+async function deleteFromAirtable(atId) {
+  if (!atId) return;
+  setSyncStatus('Deleting…');
+  try {
+    await atFetch(`/${atId}`, { method: 'DELETE' });
+    setSyncStatus('Deleted');
+  } catch(e) { setSyncStatus('Delete failed: ' + e.message); }
+}
+
+function setSyncStatus(msg) {
+  const el = document.getElementById('syncStatus');
+  if (el) el.textContent = msg;
+}
+
+// ── Filter / sort ──────────────────────────────────────────────
+function getVisible() {
+  let list = items.slice();
+  if (currentFilter !== 'all') list = list.filter(i => i.type === currentFilter);
+  if (currentTier)             list = list.filter(i => i.tier === currentTier);
+  if (currentOwners.size)      list = list.filter(i => (i.owners||[i.owner]).some(o => currentOwners.has(o)));
+  if (sortCol) {
+    list.sort((a, b) => {
+      let av, bv;
+      if      (sortCol === 'tier')    { av = TIER_ORDER[a.tier]     ?? 99; bv = TIER_ORDER[b.tier]     ?? 99; }
+      else if (sortCol === 'effort')  { av = EFFORT_ORDER[a.effort] ?? 99; bv = EFFORT_ORDER[b.effort] ?? 99; }
+      else if (sortCol === 'discuss') { av = a.discuss ? 0 : 1;            bv = b.discuss ? 0 : 1; }
+      else                            { av = (a[sortCol]||'').toLowerCase(); bv = (b[sortCol]||'').toLowerCase(); }
+      if (av < bv) return sortDir === 'asc' ? -1 : 1;
+      if (av > bv) return sortDir === 'asc' ?  1 : -1;
+      return 0;
+    });
+  }
+  return list;
+}
+
+function setSort(col) {
+  if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  else { sortCol = col; sortDir = 'asc'; }
+  render();
+}
+
+// ── Render ─────────────────────────────────────────────────────
+function esc(s) { const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
+
+function render() {
+  const visible    = getVisible();
+  const showPortco = visible.some(i => i.type === 'portco' || i.type === 'diligence') || currentFilter === 'portco' || currentFilter === 'diligence';
+  const cols       = showPortco ? '1fr 72px 149px 171px 59px 79px 68px' : '1fr 72px 171px 59px 79px 68px';
+  const colDefs    = [
+    { key:'title',   label:'Priority' },
+    { key:'discuss', label:'Discuss?' },
+    ...(showPortco ? [{ key:'portco', label:'Company' }] : []),
+    { key:'owner',  label:'Owner(s)' },
+    { key:'tier',   label:'Tier' },
+    { key:'effort', label:'Effort' },
+    { key:null,     label:'' },
+  ];
+
+  document.getElementById('badge').textContent = items.length;
+
+  const anyFilter = currentFilter !== 'all' || currentTier || currentOwners.size;
+  document.getElementById('resultsNote').textContent = anyFilter ? `Showing ${visible.length} of ${items.length}` : '';
+
+  const hdrEl = document.getElementById('colHeaders');
+  if (visible.length === 0 && !anyFilter) { hdrEl.innerHTML = ''; }
+  else {
+    hdrEl.style.gridTemplateColumns = cols;
+    hdrEl.innerHTML = colDefs.map(c => {
+      if (!c.key && !c.label) return `<div class="col-hdr"></div>`;
+      const isSort = sortCol === c.key;
+      const arrow  = isSort ? (sortDir === 'asc' ? '▲' : '▼') : '⇅';
+      return `<div class="col-hdr${isSort ? ' sort-'+sortDir : ''}" onclick="setSort('${c.key}')">${c.label} <span class="sort-arrow">${arrow}</span></div>`;
+    }).join('');
+  }
+
+  const listEl = document.getElementById('itemList');
+  if (visible.length === 0) {
+    listEl.innerHTML = `<div class="empty">${anyFilter ? 'No items match these filters.' : 'No priorities yet — add one below.'}</div>`;
+    return;
+  }
+
+  listEl.innerHTML = visible.map(item => {
+    if (editingId === item.id) return renderEdit(item, cols, showPortco);
+    const tm = TYPE_META[item.type]     || TYPE_META.portco;
+    const ti = TIER_META[item.tier]     || TIER_META.p1;
+    const ef = EFFORT_META[item.effort] || EFFORT_META.medium;
+    return `
+    <div class="item">
+      <div class="item-row" style="grid-template-columns:${cols}">
+        <div>
+          <span class="tag ${tm.cls}">${tm.label}</span>
+          <span class="title-strong">${esc(item.title)}</span>
+          ${item.updatedAt ? `<div class="updated-note">Updated ${item.updatedAt}</div>` : (item.createdAt ? `<div class="updated-note">Created ${item.createdAt}</div>` : '')}
+        </div>
+        <div class="discuss-cell"><input type="checkbox" class="discuss-check" ${item.discuss ? 'checked' : ''} onchange="toggleDiscuss('${item.id}', this.checked)" title="Flag for discussion" /></div>
+        ${showPortco ? `<div class="cell-muted">${item.portco==='__other__' ? esc(item.portcoOther||'') : (item.portco ? esc(item.portco) : '<span class="cell-dash">—</span>')}</div>` : ''}
+        <div class="cell-muted">${(item.owners||[item.owner]).filter(Boolean).map(o=>`<span class="owner-chip">${esc(o)}</span>`).join(' ')}</div>
+        <div><span class="tier ${ti.cls}">${ti.label}</span></div>
+        <div class="${ef.cls}">${ef.label}</div>
+        <div class="row-actions">
+          <button class="icon-btn" onclick="startEdit('${item.id}')">✏️</button>
+          <button class="icon-btn" onclick="deleteItem('${item.id}')">×</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Edit form ──────────────────────────────────────────────────
+function portcoOptions(sel) {
+  return `<option value="">Select company…</option>` +
+    PORTCOS.map(p => `<option value="${esc(p)}"${sel===p?' selected':''}>${esc(p)}</option>`).join('') +
+    `<option value="__other__"${sel==='__other__'?' selected':''}>Other (specify):</option>`;
+}
+function typeOptions(sel) {
+  return ['portco','internal','diligence','hygiene'].map(t => `<option value="${t}"${sel===t?' selected':''}>${TYPE_META[t].label}</option>`).join('');
+}
+
+function renderEdit(item, cols, showPortco) {
+  return `
+  <div class="item">
+    <div class="form-row">
+      <input id="e-title" value="${esc(item.title)}" placeholder="Priority name" style="flex:2;min-width:140px" />
+      <input id="e-owner-dummy" style="display:none" />
+      <select id="e-owner" class="owner-select" multiple size="3" style="min-width:140px;max-width:200px">
+        ${OWNERS.map(o=>`<option value="${o}"${(item.owners||[item.owner]).includes(o)?' selected':''}>${o}</option>`).join('')}
+      </select>
+      <select id="e-type" onchange="toggleEditPortco()" style="min-width:110px">${typeOptions(item.type)}</select>
+      <span id="e-company-wrap" style="display:${(item.type==='portco'||item.type==='diligence')?'inline-flex':'none'};gap:6px;align-items:center">
+        <select id="e-portco" style="min-width:160px" onchange="onEditPortcoChange()">${portcoOptions(item.portco==='__other__'?'__other__':item.portco)}</select>
+        <input id="e-portco-other" placeholder="Specify company…" value="${item.portco==='__other__'?(item.portcoOther||''):''}" style="min-width:140px;display:${item.portco==='__other__'?'inline-block':'none'}" />
+      </span>
+      <select id="e-tier" style="min-width:55px">
+        ${['p0','p1','p2','p3'].map(t=>`<option value="${t}"${item.tier===t?' selected':''}>${t.toUpperCase()}</option>`).join('')}
+      </select>
+      <select id="e-effort" style="min-width:80px">
+        ${['low','medium','high'].map(e=>`<option value="${e}"${item.effort===e?' selected':''}>${EFFORT_META[e].label}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-actions">
+      <button class="btn-cancel" onclick="cancelEdit()">Cancel</button>
+      <button class="btn-save" onclick="saveEdit('${item.id}')">Save</button>
+    </div>
+  </div>`;
+}
+
+function toggleEditPortco() {
+  const t = document.getElementById('e-type').value;
+  const show = t === 'portco' || t === 'diligence';
+  document.getElementById('e-company-wrap').style.display = show ? 'inline-flex' : 'none';
+}
+function onEditPortcoChange() {
+  document.getElementById('e-portco-other').style.display =
+    document.getElementById('e-portco').value === '__other__' ? 'inline-block' : 'none';
+}
+
+function startEdit(id) { editingId = id; render(); }
+function cancelEdit()  { editingId = null; render(); }
+
+function saveEdit(id) {
+  const orig = items.find(i => i.id === id);
+  const ownerArr = Array.from(document.getElementById('e-owner').selectedOptions).map(o => o.value);
+  const type  = document.getElementById('e-type').value;
+  const portcoVal = (type === 'portco' || type === 'diligence')
+    ? document.getElementById('e-portco').value : '';
+  const updated = {
+    ...orig,
+    title:       document.getElementById('e-title').value.trim(),
+    owners:      ownerArr,
+    owner:       ownerArr.join(', '),
+    type,
+    portco:      portcoVal,
+    portcoOther: portcoVal === '__other__' ? document.getElementById('e-portco-other').value.trim() : '',
+    tier:        document.getElementById('e-tier').value,
+    effort:      document.getElementById('e-effort').value,
+    updatedAt:   new Date().toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}),
+  };
+  items = items.map(i => i.id === id ? updated : i);
+  editingId = null;
+  refreshOwnerDropdown();
+  render();
+  updateInAirtable(updated);
+}
+
+function deleteItem(id) {
+  if (!confirm('Remove this priority?')) return;
+  const item = items.find(i => i.id === id);
+  items = items.filter(i => i.id !== id);
+  render();
+  deleteFromAirtable(item && item._atId);
+}
+
+function toggleDiscuss(id, val) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  item.discuss = val;
+  updateInAirtable(item);
+}
+
+// ── Owner pills ────────────────────────────────────────────────
+function refreshOwnerDropdown() {
+  const row = document.getElementById('ownerFilterRow');
+  if (!row) return;
+  row.innerHTML = OWNERS.map(o =>
+    `<button class="filter-btn owner-pill${currentOwners.has(o) ? ' active' : ''}" data-owner="${o}">${o}</button>`
+  ).join('');
+}
+
+// ── Add form ───────────────────────────────────────────────────
+function buildAddForm() {
+  document.getElementById('addFields').innerHTML = `
+    <input id="a-title" placeholder="Priority name" style="flex:2;min-width:140px" />
+    <select id="a-owner" class="owner-select" multiple size="3" style="min-width:140px;max-width:200px">
+      ${OWNERS.map(o => `<option value="${o}">${o}</option>`).join('')}
+    </select>
+    <select id="a-type" onchange="toggleAddPortco()" style="min-width:120px">${typeOptions('portco')}</select>
+    <span id="a-company-wrap" style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <select id="a-portco" style="min-width:160px" onchange="onAddPortcoChange()">${portcoOptions('')}</select>
+      <input id="a-portco-other" placeholder="Specify company…" style="min-width:140px;display:none" />
+    </span>
+    <select id="a-tier" style="min-width:55px">
+      <option value="p0">P0</option><option value="p1" selected>P1</option><option value="p2">P2</option><option value="p3">P3</option>
+    </select>
+    <select id="a-effort" style="min-width:80px">
+      <option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option>
+    </select>`;
+}
+function toggleAddPortco() {
+  const t = document.getElementById('a-type').value;
+  const show = t === 'portco' || t === 'diligence';
+  document.getElementById('a-company-wrap').style.display = show ? 'inline-flex' : 'none';
+  if (!show) { document.getElementById('a-portco').value = ''; document.getElementById('a-portco-other').style.display = 'none'; }
+}
+function onAddPortcoChange() {
+  document.getElementById('a-portco-other').style.display =
+    document.getElementById('a-portco').value === '__other__' ? 'inline-block' : 'none';
+}
+
+// ── Export CSV ─────────────────────────────────────────────────
+function exportCSV() {
+  const COLS = ['title','portco','owner','type','tier','effort','discuss','createdAt','updatedAt'];
+  const rows = items.map(item => {
+    const co  = item.portco === '__other__' ? (item.portcoOther||'') : (item.portco||'');
+    const own = (item.owners&&item.owners.length) ? item.owners.join('; ') : (item.owner||'');
+    const vals = [item.title, co, own, item.type, item.tier, item.effort, item.discuss ? 'Yes' : 'No', item.createdAt||'', item.updatedAt||''];
+    return vals.map(v => { const s = String(v||''); return (s.includes(',')||s.includes('"')) ? '"'+s.replace(/"/g,'""')+'"' : s; }).join(',');
+  });
+  const csv  = [COLS.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a    = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'team_priorities.csv' });
+  a.click(); URL.revokeObjectURL(a.href);
+  showToast('Exported ' + items.length + ' items');
+}
+
+let _toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── Event listeners ────────────────────────────────────────────
+document.getElementById('filterRow').addEventListener('click', e => {
+  if (!e.target.dataset.filter) return;
+  currentFilter = e.target.dataset.filter;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === currentFilter));
+  render();
+});
+document.getElementById('tierFilter').addEventListener('change', e => {
+  currentTier = e.target.value;
+  e.target.classList.toggle('active', !!currentTier);
+  render();
+});
+document.getElementById('ownerFilterRow').addEventListener('click', e => {
+  const btn = e.target.closest('.owner-pill');
+  if (!btn) return;
+  const o = btn.dataset.owner;
+  if (currentOwners.has(o)) currentOwners.delete(o); else currentOwners.add(o);
+  refreshOwnerDropdown(); render();
+});
+document.getElementById('addTrigger').addEventListener('click', () => {
+  const f = document.getElementById('addForm');
+  const opening = f.style.display === 'none';
+  f.style.display = opening ? 'block' : 'none';
+  if (opening) { buildAddForm(); document.getElementById('a-title').focus(); }
+});
+document.getElementById('addCancel').addEventListener('click', () => {
+  document.getElementById('addForm').style.display = 'none';
+});
+document.getElementById('addSubmit').addEventListener('click', () => {
+  const title    = document.getElementById('a-title').value.trim();
+  const ownerArr = Array.from(document.getElementById('a-owner').selectedOptions).map(o => o.value);
+  if (!title || !ownerArr.length) { alert('Title and at least one owner are required.'); return; }
+  const type     = document.getElementById('a-type').value;
+  const portcoVal = (type === 'portco' || type === 'diligence') ? document.getElementById('a-portco').value : '';
+  const newItem = {
+    id:          Date.now(),
+    _atId:       null,
+    title,
+    owners:      ownerArr,
+    owner:       ownerArr.join(', '),
+    type,
+    portco:      portcoVal,
+    portcoOther: portcoVal === '__other__' ? document.getElementById('a-portco-other').value.trim() : '',
+    tier:        document.getElementById('a-tier').value,
+    effort:      document.getElementById('a-effort').value,
+    discuss:     false,
+    createdAt:   new Date().toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}),
+    updatedAt:   null,
+  };
+  items.push(newItem);
+  document.getElementById('addForm').style.display = 'none';
+  refreshOwnerDropdown(); render();
+  saveNewToAirtable(newItem);
+});
+document.getElementById('btnExport').addEventListener('click', exportCSV);
+document.getElementById('btnRefresh').addEventListener('click', loadFromAirtable);
+
+// ── Init ───────────────────────────────────────────────────────
+refreshOwnerDropdown();
+loadFromAirtable();
+</script>
+</body>
+</html>

@@ -66,6 +66,12 @@
   .results-note { font-size: 11px; color: #aaa; margin-bottom: 6px; }
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #111; color: white; padding: 9px 18px; border-radius: 8px; font-size: 12px; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 999; white-space: nowrap; }
   .toast.show { opacity: 1; }
+  .notes-toggle { font-size: 11px; color: #bbb; cursor: pointer; user-select: none; display: inline-block; margin-top: 6px; }
+  .notes-toggle:hover { color: #555; }
+  .notes-list { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+  .note-entry { font-size: 12px; color: #333; background: #FAFAF8; border-radius: 6px; padding: 7px 10px; border: 1px solid #F0EDE8; }
+  .note-meta { font-size: 10px; color: #bbb; margin-top: 3px; }
+  .note-loading { font-size: 11px; color: #bbb; font-style: italic; margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -121,8 +127,10 @@ const AT_TOKEN           = 'YOUR_AIRTABLE_TOKEN_HERE'; // set your token in .env
 const AT_BASE            = 'apprts1vjjywz70qe';
 const AT_TABLE           = 'tblawpK5U46wsBYwy';
 const AT_CHANGELOG_TABLE = 'tblaxKfKzkxXV42zr';
+const AT_NOTES_TABLE     = 'tblIEhbSAb7iJrn94';
 const AT_URL             = `https://api.airtable.com/v0/${AT_BASE}/${AT_TABLE}`;
 const AT_CHANGELOG_URL   = `https://api.airtable.com/v0/${AT_BASE}/${AT_CHANGELOG_TABLE}`;
+const AT_NOTES_URL       = `https://api.airtable.com/v0/${AT_BASE}/${AT_NOTES_TABLE}`;
 const AT_HEADS           = { 'Authorization': `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' };
 
 // ── Constants ──────────────────────────────────────────────────
@@ -142,6 +150,8 @@ let currentOwners = new Set();
 let sortCol       = null;
 let sortDir       = 'asc';
 let editingId     = null;
+let expandedId    = null;
+let notesCache    = {};
 
 // ── Airtable helpers ───────────────────────────────────────────
 function toAT(item) {
@@ -236,6 +246,60 @@ async function deleteFromAirtable(atId) {
     await atFetch(`/${atId}`, { method: 'DELETE' });
     setSyncStatus('Deleted');
   } catch(e) { setSyncStatus('Delete failed: ' + e.message); }
+}
+
+async function saveNote(priorityId, noteText, createdBy) {
+  try {
+    const r = await fetch(AT_NOTES_URL, {
+      method: 'POST',
+      headers: AT_HEADS,
+      body: JSON.stringify({ fields: {
+        priority_id: String(priorityId),
+        note:        noteText,
+        created_by:  createdBy || '',
+      }})
+    });
+    if (!r.ok) { const t = await r.text(); console.error('Note save failed:', r.status, t); }
+  } catch(e) { console.error('Note fetch error:', e.message); }
+}
+
+async function fetchNotes(id) {
+  const formula = encodeURIComponent(`{priority_id}="${id}"`);
+  try {
+    const r = await fetch(
+      `${AT_NOTES_URL}?filterByFormula=${formula}&sort%5B0%5D%5Bfield%5D=created_at&sort%5B0%5D%5Bdirection%5D=desc&maxRecords=3`,
+      { headers: AT_HEADS }
+    );
+    if (!r.ok) return [];
+    const data = await r.json();
+    return (data.records || []).map(rec => ({
+      note:       rec.fields.note       || '',
+      created_by: rec.fields.created_by || '',
+      ts:         rec.createdTime       || '',
+    }));
+  } catch(e) { return []; }
+}
+
+async function toggleExpand(id) {
+  if (expandedId === id) { expandedId = null; render(); return; }
+  expandedId = id;
+  if (!notesCache[id]) {
+    notesCache[id] = null;
+    render();
+    notesCache[id] = await fetchNotes(id);
+  }
+  render();
+}
+
+function renderNotes(id) {
+  const notes = notesCache[id];
+  if (notes === null) return '<div class="note-loading">Loading…</div>';
+  if (!notes || notes.length === 0) return '<div class="note-loading">No notes yet.</div>';
+  return `<div class="notes-list">${notes.map(n => `
+    <div class="note-entry">
+      <div>${esc(n.note)}</div>
+      <div class="note-meta">${[n.created_by, n.ts ? new Date(n.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : ''].filter(Boolean).join(' · ')}</div>
+    </div>`).join('')}</div>`;
 }
 
 async function logChange(priorityId, priorityTitle, fieldChanged, oldValue, newValue) {
@@ -351,6 +415,10 @@ function render() {
           <button class="icon-btn" onclick="deleteItem('${item.id}')">×</button>
         </div>
       </div>
+      <div>
+        <span class="notes-toggle" onclick="toggleExpand('${item.id}')">${expandedId === item.id ? '▲ Hide notes' : '▾ Notes'}</span>
+        ${expandedId === item.id ? renderNotes(item.id) : ''}
+      </div>
     </div>`;
   }).join('');
 }
@@ -386,6 +454,13 @@ function renderEdit(item, cols, showPortco) {
         ${['low','medium','high'].map(e=>`<option value="${e}"${item.effort===e?' selected':''}>${EFFORT_META[e].label}</option>`).join('')}
       </select>
     </div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-start">
+      <textarea id="e-note" placeholder="Add a note (optional)…" style="flex:1;min-height:58px;padding:7px 9px;border:1.5px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit;outline:none;resize:vertical;"></textarea>
+      <select id="e-note-by" style="min-width:110px;align-self:flex-start">
+        <option value="">Who's noting?</option>
+        ${OWNERS.map(o => `<option value="${o}">${o}</option>`).join('')}
+      </select>
+    </div>
     <div class="form-actions">
       <button class="btn-cancel" onclick="cancelEdit()">Cancel</button>
       <button class="btn-save" onclick="saveEdit('${item.id}')">Save</button>
@@ -407,7 +482,9 @@ function startEdit(id) { editingId = id; render(); }
 function cancelEdit()  { editingId = null; render(); }
 
 function saveEdit(id) {
-  const orig = items.find(i => i.id === id);
+  const orig     = items.find(i => i.id === id);
+  const noteText = (document.getElementById('e-note')?.value    || '').trim();
+  const noteBy   = (document.getElementById('e-note-by')?.value || '').trim();
   const ownerArr = Array.from(document.getElementById('e-owner').selectedOptions).map(o => o.value);
   const type  = document.getElementById('e-type').value;
   const portcoVal = (type === 'portco' || type === 'diligence')
@@ -441,6 +518,7 @@ function saveEdit(id) {
   refreshOwnerDropdown();
   render();
   updateInAirtable(updated);
+  if (noteText) { saveNote(id, noteText, noteBy); delete notesCache[id]; }
 }
 
 function deleteItem(id) {

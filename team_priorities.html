@@ -72,6 +72,8 @@
   .note-entry { font-size: 12px; color: #333; background: #FAFAF8; border-radius: 6px; padding: 7px 10px; border: 1px solid #F0EDE8; }
   .note-meta { font-size: 10px; color: #bbb; margin-top: 3px; }
   .note-loading { font-size: 11px; color: #bbb; font-style: italic; margin-top: 6px; }
+  .check-label { font-size: 12px; font-weight: 600; color: #555; display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+  .check-label input[type=checkbox] { width: 14px; height: 14px; cursor: pointer; accent-color: #111; }
 </style>
 </head>
 <body>
@@ -110,6 +112,17 @@
 <div class="list" id="itemList"></div>
 
 <div class="add-bar">
+  <div class="add-trigger" id="feedbackTrigger"><span style="font-size:16px">💬</span> Submit feedback</div>
+  <div id="feedbackForm" style="display:none;">
+    <div id="feedbackFields"></div>
+    <div class="form-actions" style="margin-top:8px">
+      <button class="btn-cancel" id="feedbackCancel">Cancel</button>
+      <button class="btn-save" id="feedbackSubmit">Submit</button>
+    </div>
+  </div>
+</div>
+
+<div class="add-bar" style="margin-top:8px">
   <div class="add-trigger" id="addTrigger"><span style="font-size:16px">＋</span> Add priority</div>
   <div id="addForm" style="display:none;">
     <div class="form-row" id="addFields"></div>
@@ -131,6 +144,8 @@ const AT_NOTES_TABLE     = 'tblIEhbSAb7iJrn94';
 const AT_URL             = `https://api.airtable.com/v0/${AT_BASE}/${AT_TABLE}`;
 const AT_CHANGELOG_URL   = `https://api.airtable.com/v0/${AT_BASE}/${AT_CHANGELOG_TABLE}`;
 const AT_NOTES_URL       = `https://api.airtable.com/v0/${AT_BASE}/${AT_NOTES_TABLE}`;
+const AT_FEEDBACK_TABLE  = 'tblsUxxd46SU5IXmz';
+const AT_FEEDBACK_URL    = `https://api.airtable.com/v0/${AT_BASE}/${AT_FEEDBACK_TABLE}`;
 const AT_HEADS           = { 'Authorization': `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' };
 
 // ── Constants ──────────────────────────────────────────────────
@@ -627,6 +642,42 @@ function onAddPortcoChange() {
     document.getElementById('a-portco').value === '__other__' ? 'inline-block' : 'none';
 }
 
+// ── Feedback ───────────────────────────────────────────────────
+function buildFeedbackForm() {
+  document.getElementById('feedbackFields').innerHTML = `
+    <div class="form-row" style="flex-direction:column;gap:10px;margin-bottom:0">
+      <div style="display:flex;gap:16px;flex-wrap:wrap">
+        <label class="check-label"><input type="checkbox" value="Bug Fix" class="fb-type"> Bug Fix</label>
+        <label class="check-label"><input type="checkbox" value="Enhancement" class="fb-type"> Enhancement</label>
+        <label class="check-label"><input type="checkbox" value="Future Use Case" class="fb-type"> Future Use Case</label>
+      </div>
+      <textarea id="fb-details" placeholder="Describe in detail…" style="width:100%;min-height:80px;padding:7px 9px;border:1.5px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit;outline:none;resize:vertical;"></textarea>
+      <select id="fb-by" style="min-width:140px">
+        <option value="">Submitted by…</option>
+        ${OWNERS.map(o => `<option value="${o}">${o}</option>`).join('')}
+      </select>
+    </div>`;
+}
+
+async function submitFeedback() {
+  const types   = Array.from(document.querySelectorAll('.fb-type:checked')).map(c => c.value);
+  const details = (document.getElementById('fb-details').value || '').trim();
+  const by      = document.getElementById('fb-by').value;
+  if (!types.length) { alert('Please select at least one type.'); return; }
+  if (!details)      { alert('Please enter details.'); return; }
+  if (!by)           { alert('Please select who is submitting.'); return; }
+  try {
+    const r = await fetch(AT_FEEDBACK_URL, {
+      method: 'POST',
+      headers: AT_HEADS,
+      body: JSON.stringify({ fields: { type: types.join(', '), details, submitted_by: by } })
+    });
+    if (!r.ok) { const t = await r.text(); console.error('Feedback submit failed:', r.status, t); showToast('Submit failed'); return; }
+    document.getElementById('feedbackForm').style.display = 'none';
+    showToast('Feedback submitted — thank you!');
+  } catch(e) { console.error('Feedback error:', e.message); showToast('Submit failed'); }
+}
+
 // ── Export CSV ─────────────────────────────────────────────────
 function exportCSV() {
   const COLS = ['title','portco','owner','type','tier','effort','discuss','createdAt','updatedAt'];
@@ -705,6 +756,16 @@ document.getElementById('addSubmit').addEventListener('click', () => {
   refreshOwnerDropdown(); render();
   saveNewToAirtable(newItem);
 });
+document.getElementById('feedbackTrigger').addEventListener('click', () => {
+  const f = document.getElementById('feedbackForm');
+  const opening = f.style.display === 'none';
+  f.style.display = opening ? 'block' : 'none';
+  if (opening) { buildFeedbackForm(); document.getElementById('fb-details').focus(); }
+});
+document.getElementById('feedbackCancel').addEventListener('click', () => {
+  document.getElementById('feedbackForm').style.display = 'none';
+});
+document.getElementById('feedbackSubmit').addEventListener('click', submitFeedback);
 document.getElementById('btnExport').addEventListener('click', exportCSV);
 document.getElementById('btnRefresh').addEventListener('click', loadFromAirtable);
 

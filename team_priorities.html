@@ -500,7 +500,7 @@ function renderEdit(item, cols, showPortco) {
   return `
   <div class="item">
     <div class="form-row">
-      <input id="e-title" value="${esc(item.title)}" placeholder="Priority name" style="flex:2;min-width:140px" autocomplete="off" />
+      <input id="e-title" value="${esc(item.title)}" placeholder="Priority name" style="flex:2;min-width:140px" autocomplete="new-password" />
       <input id="e-owner-dummy" style="display:none" />
       <select id="e-owner" class="owner-select" multiple size="3" style="min-width:140px;max-width:200px">
         ${OWNERS.map(o=>`<option value="${o}"${(item.owners||[item.owner]).includes(o)?' selected':''}>${o}</option>`).join('')}
@@ -621,7 +621,7 @@ function refreshOwnerDropdown() {
 // ── Add form ───────────────────────────────────────────────────
 function buildAddForm() {
   document.getElementById('addFields').innerHTML = `
-    <input id="a-title" placeholder="Priority name" style="flex:2;min-width:140px" autocomplete="off" />
+    <input id="a-title" placeholder="Priority name" style="flex:2;min-width:140px" autocomplete="new-password" />
     <select id="a-owner" class="owner-select" multiple size="3" style="min-width:140px;max-width:200px">
       ${OWNERS.map(o => `<option value="${o}"${currentOwners.size===1 && currentOwners.has(o) ? ' selected' : ''}>${o}</option>`).join('')}
     </select>

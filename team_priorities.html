@@ -298,7 +298,7 @@ function renderNotes(id) {
   return `<div class="notes-list">${notes.map(n => `
     <div class="note-entry">
       <div>${esc(n.note)}</div>
-      <div class="note-meta">${[n.created_by, n.ts ? new Date(n.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : ''].filter(Boolean).join(' · ')}</div>
+      <div class="note-meta">${[n.created_by, n.ts ? new Date(n.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '', n.ts ? new Date(n.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : ''].filter(Boolean).join(' - ')}</div>
     </div>`).join('')}</div>`;
 }
 

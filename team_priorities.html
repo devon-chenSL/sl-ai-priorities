@@ -341,7 +341,7 @@ function renderNotes(id) {
 }
 
 async function logChange(priorityId, priorityTitle, fieldChanged, oldValue, newValue) {
-  console.log('logChange called:', fieldChanged, oldValue, '->', newValue);
+  // console.log('logChange called:', fieldChanged, oldValue, '->', newValue);
   try {
     const r = await fetch(AT_CHANGELOG_URL, {
       method: 'POST',

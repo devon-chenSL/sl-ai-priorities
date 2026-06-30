@@ -311,6 +311,8 @@ async function removeNote(priorityId, noteId) {
     render();
   }
   await deleteNote(priorityId, noteId);
+  notesCache[priorityId] = await fetchNotes(priorityId);
+  render();
 }
 
 async function toggleExpand(id) {

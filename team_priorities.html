@@ -117,11 +117,13 @@
 <script>
 // ── Airtable config ────────────────────────────────────────────
 // Replace YOUR_AIRTABLE_TOKEN_HERE with your personal access token
-const AT_TOKEN = 'YOUR_AIRTABLE_TOKEN_HERE'; // set your token in .env and paste here locally — never commit the real value
-const AT_BASE  = 'apprts1vjjywz70qe';
-const AT_TABLE = 'tblawpK5U46wsBYwy';
-const AT_URL   = `https://api.airtable.com/v0/${AT_BASE}/${AT_TABLE}`;
-const AT_HEADS = { 'Authorization': `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' };
+const AT_TOKEN           = 'YOUR_AIRTABLE_TOKEN_HERE'; // set your token in .env and paste here locally — never commit the real value
+const AT_BASE            = 'apprts1vjjywz70qe';
+const AT_TABLE           = 'tblawpK5U46wsBYwy';
+const AT_CHANGELOG_TABLE = 'YOUR_CHANGELOG_TABLE_ID'; // create in Airtable: priority_id, priority_title, field_changed, old_value, new_value, changed_at
+const AT_URL             = `https://api.airtable.com/v0/${AT_BASE}/${AT_TABLE}`;
+const AT_CHANGELOG_URL   = `https://api.airtable.com/v0/${AT_BASE}/${AT_CHANGELOG_TABLE}`;
+const AT_HEADS           = { 'Authorization': `Bearer ${AT_TOKEN}`, 'Content-Type': 'application/json' };
 
 // ── Constants ──────────────────────────────────────────────────
 const PORTCOS = ["A Place for Mom","A&N","ARIS","Achievers","Airtable","Alchemy","Altera","Ant Group","Australian Professional Leagues","Blackhawk Network","Carta","Casago (formerly Vacasa)","Cegid","Celonis","City Football Group","Clari/Salesloft","Convenience Bee","Cross-Portco: Asset Build","Dell","Diamond Baseball Holdings","ETL","Electronic Arts","Entrata","Equinox Group","EverCommerce","Exact","Facile.it","Fanatics Collectibles","Fanatics, Inc.","First Advantage","G42","Genies","Getir","Global Payments","GoodRx","Groupe Meilleurtaux","Grupo BC","IVC Evidensia","Imagine Learning","Integrity Marketing Group","Iterable","Jio Platforms","Khazna Data Centers","Klarna","LightBox","Madison Square Garden Sports","Mirakl","Mission Pet Health","N-Able","New Zealand Rugby","Noom","Oak View Group","Plaid","ProService","Qualtrics","RAC","Red Ventures","Relativity","Reliance Retail","Shadowbox Studios","Silae","Stripe","TEG","TKO (Endeavor)","TeamSystem","TikTok USDS JV","Unity","Vantage Data Centers","Verily","WME (Endeavor)","WP Engine","Waymo","Xplor","ZPG","Zuora"];
@@ -234,6 +236,23 @@ async function deleteFromAirtable(atId) {
     await atFetch(`/${atId}`, { method: 'DELETE' });
     setSyncStatus('Deleted');
   } catch(e) { setSyncStatus('Delete failed: ' + e.message); }
+}
+
+async function logChange(priorityId, priorityTitle, fieldChanged, oldValue, newValue) {
+  try {
+    await fetch(AT_CHANGELOG_URL, {
+      method: 'POST',
+      headers: AT_HEADS,
+      body: JSON.stringify({ fields: {
+        priority_id:    String(priorityId),
+        priority_title: priorityTitle,
+        field_changed:  fieldChanged,
+        old_value:      String(oldValue ?? ''),
+        new_value:      String(newValue ?? ''),
+        changed_at:     new Date().toISOString(),
+      }})
+    });
+  } catch(e) { console.warn('Changelog write failed:', e.message); }
 }
 
 function setSyncStatus(msg) {
@@ -404,6 +423,18 @@ function saveEdit(id) {
     effort:      document.getElementById('e-effort').value,
     updatedAt:   new Date().toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}),
   };
+  const resolvePortco = item => item.portco === '__other__' ? (item.portcoOther || '') : (item.portco || '');
+  const changes = [
+    ['title',   orig.title,              updated.title],
+    ['owner',   orig.owner,              updated.owner],
+    ['type',    orig.type,               updated.type],
+    ['portco',  resolvePortco(orig),     resolvePortco(updated)],
+    ['tier',    orig.tier,               updated.tier],
+    ['effort',  orig.effort,             updated.effort],
+  ];
+  for (const [field, oldVal, newVal] of changes) {
+    if (String(oldVal ?? '') !== String(newVal ?? '')) logChange(id, updated.title, field, oldVal, newVal);
+  }
   items = items.map(i => i.id === id ? updated : i);
   editingId = null;
   refreshOwnerDropdown();
@@ -422,6 +453,7 @@ function deleteItem(id) {
 function toggleDiscuss(id, val) {
   const item = items.find(i => i.id === id);
   if (!item) return;
+  logChange(id, item.title, 'discuss', String(item.discuss), String(val));
   item.discuss = val;
   updateInAirtable(item);
 }

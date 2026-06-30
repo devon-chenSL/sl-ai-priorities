@@ -227,6 +227,7 @@ async function saveNewToAirtable(item) {
     item._atId = data.id;
     item.id    = data.id;
     setSyncStatus('Saved');
+    logChange(data.id, item.title, 'created', '', item.title);
   } catch(e) { setSyncStatus('Save failed: ' + e.message); }
 }
 

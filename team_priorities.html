@@ -267,17 +267,50 @@ async function fetchNotes(id) {
   const formula = encodeURIComponent(`{priority_id}="${id}"`);
   try {
     const r = await fetch(
-      `${AT_NOTES_URL}?filterByFormula=${formula}&sort%5B0%5D%5Bfield%5D=created_at&sort%5B0%5D%5Bdirection%5D=desc&maxRecords=3`,
+      `${AT_NOTES_URL}?filterByFormula=${formula}&sort%5B0%5D%5Bfield%5D=created_at&sort%5B0%5D%5Bdirection%5D=desc`,
       { headers: AT_HEADS }
     );
     if (!r.ok) return [];
     const data = await r.json();
-    return (data.records || []).map(rec => ({
-      note:       rec.fields.note       || '',
-      created_by: rec.fields.created_by || '',
-      ts:         rec.createdTime       || '',
-    }));
+    const records = data.records || [];
+    const deletedIds = new Set(
+      records
+        .filter(rec => (rec.fields.note || '').startsWith('__deleted__:'))
+        .map(rec => rec.fields.note.replace('__deleted__:', ''))
+    );
+    return records
+      .filter(rec => !(rec.fields.note || '').startsWith('__deleted__:') && !deletedIds.has(rec.id))
+      .slice(0, 3)
+      .map(rec => ({
+        id:         rec.id,
+        note:       rec.fields.note       || '',
+        created_by: rec.fields.created_by || '',
+        ts:         rec.createdTime       || '',
+      }));
   } catch(e) { return []; }
+}
+
+async function deleteNote(priorityId, noteId) {
+  try {
+    const r = await fetch(AT_NOTES_URL, {
+      method: 'POST',
+      headers: AT_HEADS,
+      body: JSON.stringify({ fields: {
+        priority_id: String(priorityId),
+        note:        `__deleted__:${noteId}`,
+        created_by:  '',
+      }})
+    });
+    if (!r.ok) { const t = await r.text(); console.error('Note delete failed:', r.status, t); }
+  } catch(e) { console.error('Note delete error:', e.message); }
+}
+
+async function removeNote(priorityId, noteId) {
+  if (notesCache[priorityId]) {
+    notesCache[priorityId] = notesCache[priorityId].filter(n => n.id !== noteId);
+    render();
+  }
+  await deleteNote(priorityId, noteId);
 }
 
 async function toggleExpand(id) {
@@ -296,9 +329,12 @@ function renderNotes(id) {
   if (notes === null) return '<div class="note-loading">Loading…</div>';
   if (!notes || notes.length === 0) return '<div class="note-loading">No notes yet.</div>';
   return `<div class="notes-list">${notes.map(n => `
-    <div class="note-entry">
-      <div>${esc(n.note)}</div>
-      <div class="note-meta">${[n.created_by, n.ts ? new Date(n.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '', n.ts ? new Date(n.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : ''].filter(Boolean).join(' - ')}</div>
+    <div class="note-entry" style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div style="flex:1">
+        <div>${esc(n.note)}</div>
+        <div class="note-meta">${[n.created_by, n.ts ? new Date(n.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '', n.ts ? new Date(n.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : ''].filter(Boolean).join(' - ')}</div>
+      </div>
+      <button class="icon-btn" style="flex-shrink:0" onclick="removeNote('${id}','${n.id}')">×</button>
     </div>`).join('')}</div>`;
 }
 
@@ -481,7 +517,7 @@ function onEditPortcoChange() {
 function startEdit(id) { editingId = id; render(); }
 function cancelEdit()  { editingId = null; render(); }
 
-function saveEdit(id) {
+async function saveEdit(id) {
   const orig     = items.find(i => i.id === id);
   const noteText = (document.getElementById('e-note')?.value    || '').trim();
   const noteBy   = (document.getElementById('e-note-by')?.value || '').trim();
@@ -518,7 +554,14 @@ function saveEdit(id) {
   refreshOwnerDropdown();
   render();
   updateInAirtable(updated);
-  if (noteText) { saveNote(id, noteText, noteBy); delete notesCache[id]; }
+  if (noteText) {
+    expandedId = id;
+    notesCache[id] = null;
+    render();
+    await saveNote(id, noteText, noteBy);
+    notesCache[id] = await fetchNotes(id);
+    render();
+  }
 }
 
 function deleteItem(id) {

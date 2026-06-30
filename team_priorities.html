@@ -50,10 +50,13 @@
   .icon-btn { width: 26px; height: 26px; border-radius: 6px; border: 1px solid #e0e0e0; background: white; cursor: pointer; font-size: 13px; color: #888; display: flex; align-items: center; justify-content: center; }
   .icon-btn:hover { background: #f5f5f5; }
   .updated-note { font-size: 10px; color: #bbb; margin-top: 2px; }
-  .add-bar { margin-top: 12px; background: white; border: 1.5px dashed #ccc; border-radius: 10px; padding: 12px 16px; }
+  .add-bar { margin-top: 12px; background: white; border: 1.5px dashed #ccc; border-radius: 10px; padding: 12px 16px; width: fit-content; margin-left: auto; transition: width 0.2s ease; }
+  .add-bar.open { width: 50%; }
   .add-trigger { font-size: 13px; font-weight: 600; color: #555; cursor: pointer; display: flex; align-items: center; gap: 6px; user-select: none; }
   .add-trigger:hover { color: #111; }
-  .form-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; margin-bottom: 8px; }
+  .form-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; margin-bottom: 8px; }
+  .field-group { display: flex; flex-direction: column; }
+  .field-label { font-size: 10px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
   input, select { padding: 6px 9px; border: 1.5px solid #ddd; border-radius: 7px; font-size: 12px; font-family: inherit; outline: none; background: white; }
   input:focus, select:focus { border-color: #888; }
   input[type=search]::-webkit-search-decoration,
@@ -625,21 +628,40 @@ function refreshOwnerDropdown() {
 // ── Add form ───────────────────────────────────────────────────
 function buildAddForm() {
   document.getElementById('addFields').innerHTML = `
-    <input type="search" id="a-title" placeholder="Priority name" style="flex:2;min-width:140px" />
-    <select id="a-owner" class="owner-select" multiple size="3" style="min-width:140px;max-width:200px">
-      ${OWNERS.map(o => `<option value="${o}">${o}</option>`).join('')}
-    </select>
-    <select id="a-type" onchange="toggleAddPortco()" style="min-width:120px">${typeOptions('portco')}</select>
-    <span id="a-company-wrap" style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap">
-      <select id="a-portco" style="min-width:160px" onchange="onAddPortcoChange()">${portcoOptions('')}</select>
-      <input id="a-portco-other" placeholder="Specify company…" style="min-width:140px;display:none" />
-    </span>
-    <select id="a-tier" style="min-width:55px">
-      <option value="p0">P0</option><option value="p1" selected>P1</option><option value="p2">P2</option><option value="p3">P3</option>
-    </select>
-    <select id="a-effort" style="min-width:80px">
-      <option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option>
-    </select>`;
+    <div class="field-group" style="flex:2;min-width:140px">
+      <span class="field-label">Priority Name</span>
+      <input type="search" id="a-title" placeholder="Priority name" style="width:100%" />
+    </div>
+    <div class="field-group" style="min-width:130px">
+      <span class="field-label">Owner(s)</span>
+      <select id="a-owner" class="owner-select" multiple size="3" style="width:100%">
+        ${OWNERS.map(o => `<option value="${o}">${o}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field-group" style="min-width:110px">
+      <span class="field-label">Type</span>
+      <select id="a-type" onchange="toggleAddPortco()" style="width:100%">${typeOptions('portco')}</select>
+    </div>
+    <div class="field-group" id="a-company-wrap" style="display:none;min-width:160px">
+      <span class="field-label">Company</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <select id="a-portco" style="min-width:160px" onchange="onAddPortcoChange()">${portcoOptions('')}</select>
+        <input id="a-portco-other" placeholder="Specify company…" style="min-width:140px;display:none" />
+      </div>
+    </div>
+    <div class="field-group" style="min-width:60px">
+      <span class="field-label">Tier</span>
+      <select id="a-tier" style="width:100%">
+        <option value="p0">P0</option><option value="p1" selected>P1</option><option value="p2">P2</option><option value="p3">P3</option>
+      </select>
+    </div>
+    <div class="field-group" style="min-width:80px">
+      <span class="field-label">Effort</span>
+      <select id="a-effort" style="width:100%">
+        <option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option>
+      </select>
+    </div>`;
+  toggleAddPortco();
   applyOwnerDefault('a-owner');
 }
 function applyOwnerDefault(selectId) {
@@ -651,7 +673,7 @@ function applyOwnerDefault(selectId) {
 function toggleAddPortco() {
   const t = document.getElementById('a-type').value;
   const show = t === 'portco' || t === 'diligence';
-  document.getElementById('a-company-wrap').style.display = show ? 'inline-flex' : 'none';
+  document.getElementById('a-company-wrap').style.display = show ? 'flex' : 'none';
   if (!show) { document.getElementById('a-portco').value = ''; document.getElementById('a-portco-other').style.display = 'none'; }
 }
 function onAddPortcoChange() {
@@ -741,13 +763,16 @@ document.getElementById('ownerFilterRow').addEventListener('click', e => {
   refreshOwnerDropdown(); render();
 });
 document.getElementById('addTrigger').addEventListener('click', () => {
-  const f = document.getElementById('addForm');
+  const f   = document.getElementById('addForm');
+  const bar = document.getElementById('addTrigger').closest('.add-bar');
   const opening = f.style.display === 'none';
   f.style.display = opening ? 'block' : 'none';
+  bar.classList.toggle('open', opening);
   if (opening) { buildAddForm(); document.getElementById('a-title').focus(); }
 });
 document.getElementById('addCancel').addEventListener('click', () => {
   document.getElementById('addForm').style.display = 'none';
+  document.getElementById('addTrigger').closest('.add-bar').classList.remove('open');
 });
 document.getElementById('addSubmit').addEventListener('click', () => {
   const title    = document.getElementById('a-title').value.trim();
@@ -772,6 +797,7 @@ document.getElementById('addSubmit').addEventListener('click', () => {
   };
   items.push(newItem);
   document.getElementById('addForm').style.display = 'none';
+  document.getElementById('addTrigger').closest('.add-bar').classList.remove('open');
   refreshOwnerDropdown(); render();
   saveNewToAirtable(newItem);
 });

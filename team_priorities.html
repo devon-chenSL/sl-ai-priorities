@@ -239,6 +239,7 @@ async function deleteFromAirtable(atId) {
 }
 
 async function logChange(priorityId, priorityTitle, fieldChanged, oldValue, newValue) {
+  console.log('logChange called:', fieldChanged, oldValue, '->', newValue);
   try {
     const r = await fetch(AT_CHANGELOG_URL, {
       method: 'POST',
@@ -249,7 +250,6 @@ async function logChange(priorityId, priorityTitle, fieldChanged, oldValue, newV
         field_changed:  fieldChanged,
         old_value:      String(oldValue ?? ''),
         new_value:      String(newValue ?? ''),
-        changed_at:     new Date().toISOString(),
       }})
     });
     if (!r.ok) { const t = await r.text(); console.error('Changelog write failed:', r.status, t); }

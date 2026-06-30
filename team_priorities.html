@@ -521,7 +521,7 @@ function renderEdit(item, cols, showPortco) {
       <textarea id="e-note" placeholder="Add a note (optional)…" style="flex:1;min-height:58px;padding:7px 9px;border:1.5px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit;outline:none;resize:vertical;"></textarea>
       <select id="e-note-by" style="min-width:110px;align-self:flex-start">
         <option value="">Who's noting?</option>
-        ${OWNERS.map(o => `<option value="${o}"${currentOwners.size===1 && currentOwners.has(o) ? ' selected' : ''}>${o}</option>`).join('')}
+        ${OWNERS.map(o => `<option value="${o}">${o}</option>`).join('')}
       </select>
     </div>
     <div class="form-actions">
@@ -541,7 +541,7 @@ function onEditPortcoChange() {
     document.getElementById('e-portco').value === '__other__' ? 'inline-block' : 'none';
 }
 
-function startEdit(id) { editingId = id; render(); }
+function startEdit(id) { editingId = id; render(); setTimeout(() => applyOwnerDefault('e-note-by'), 0); }
 function cancelEdit()  { editingId = null; render(); }
 
 async function saveEdit(id) {
@@ -623,7 +623,7 @@ function buildAddForm() {
   document.getElementById('addFields').innerHTML = `
     <input id="a-title" placeholder="Priority name" style="flex:2;min-width:140px" />
     <select id="a-owner" class="owner-select" multiple size="3" style="min-width:140px;max-width:200px">
-      ${OWNERS.map(o => `<option value="${o}"${currentOwners.size===1 && currentOwners.has(o) ? ' selected' : ''}>${o}</option>`).join('')}
+      ${OWNERS.map(o => `<option value="${o}">${o}</option>`).join('')}
     </select>
     <select id="a-type" onchange="toggleAddPortco()" style="min-width:120px">${typeOptions('portco')}</select>
     <span id="a-company-wrap" style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap">
@@ -636,7 +636,14 @@ function buildAddForm() {
     <select id="a-effort" style="min-width:80px">
       <option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option>
     </select>`;
+  applyOwnerDefault('a-owner');
 }
+function applyOwnerDefault(selectId) {
+  if (currentOwners.size !== 1) return;
+  const [owner] = currentOwners;
+  Array.from(document.getElementById(selectId).options).forEach(o => { o.selected = o.value === owner; });
+}
+
 function toggleAddPortco() {
   const t = document.getElementById('a-type').value;
   const show = t === 'portco' || t === 'diligence';
@@ -660,9 +667,10 @@ function buildFeedbackForm() {
       <textarea id="fb-details" placeholder="Describe in detail…" style="width:100%;min-height:80px;padding:7px 9px;border:1.5px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit;outline:none;resize:vertical;"></textarea>
       <select id="fb-by" style="min-width:140px">
         <option value="">Submitted by…</option>
-        ${OWNERS.map(o => `<option value="${o}"${currentOwners.size===1 && currentOwners.has(o) ? ' selected' : ''}>${o}</option>`).join('')}
+        ${OWNERS.map(o => `<option value="${o}">${o}</option>`).join('')}
       </select>
     </div>`;
+  applyOwnerDefault('fb-by');
 }
 
 async function submitFeedback() {

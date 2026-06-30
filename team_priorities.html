@@ -307,11 +307,14 @@ async function deleteNote(priorityId, noteId) {
 }
 
 async function removeNote(priorityId, noteId) {
+  const noteEntry = (notesCache[priorityId] || []).find(n => n.id === noteId);
+  const priority  = items.find(i => i.id === priorityId);
   if (notesCache[priorityId]) {
     notesCache[priorityId] = notesCache[priorityId].filter(n => n.id !== noteId);
     render();
   }
   await deleteNote(priorityId, noteId);
+  if (noteEntry && priority) logChange(priorityId, priority.title, 'note_deleted', noteEntry.note, '');
   notesCache[priorityId] = await fetchNotes(priorityId);
   render();
 }
@@ -562,6 +565,7 @@ async function saveEdit(id) {
     notesCache[id] = null;
     render();
     await saveNote(id, noteText, noteBy);
+    logChange(id, updated.title, 'note_added', '', noteText);
     notesCache[id] = await fetchNotes(id);
     render();
   }
@@ -573,6 +577,7 @@ function deleteItem(id) {
   items = items.filter(i => i.id !== id);
   render();
   deleteFromAirtable(item && item._atId);
+  if (item) logChange(id, item.title, 'deleted', item.title, '');
 }
 
 function toggleDiscuss(id, val) {

@@ -56,6 +56,10 @@
   .form-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; margin-bottom: 8px; }
   input, select { padding: 6px 9px; border: 1.5px solid #ddd; border-radius: 7px; font-size: 12px; font-family: inherit; outline: none; background: white; }
   input:focus, select:focus { border-color: #888; }
+  input[type=search]::-webkit-search-decoration,
+  input[type=search]::-webkit-search-cancel-button,
+  input[type=search]::-webkit-search-results-button,
+  input[type=search]::-webkit-search-results-decoration { display: none; }
   .form-actions { display: flex; gap: 8px; justify-content: flex-end; }
   .btn-cancel { padding: 6px 13px; border-radius: 7px; border: 1.5px solid #ddd; background: white; font-size: 12px; font-weight: 600; cursor: pointer; color: #555; }
   .btn-save { padding: 6px 14px; border-radius: 7px; border: none; background: #111; color: white; font-size: 12px; font-weight: 600; cursor: pointer; }
@@ -500,7 +504,7 @@ function renderEdit(item, cols, showPortco) {
   return `
   <div class="item">
     <div class="form-row">
-      <input id="e-title" value="${esc(item.title)}" placeholder="Priority name" style="flex:2;min-width:140px" />
+      <input type="search" id="e-title" value="${esc(item.title)}" placeholder="Priority name" style="flex:2;min-width:140px" />
       <input id="e-owner-dummy" style="display:none" />
       <select id="e-owner" class="owner-select" multiple size="3" style="min-width:140px;max-width:200px">
         ${OWNERS.map(o=>`<option value="${o}"${(item.owners||[item.owner]).includes(o)?' selected':''}>${o}</option>`).join('')}
@@ -621,7 +625,7 @@ function refreshOwnerDropdown() {
 // ── Add form ───────────────────────────────────────────────────
 function buildAddForm() {
   document.getElementById('addFields').innerHTML = `
-    <input id="a-title" placeholder="Priority name" style="flex:2;min-width:140px" />
+    <input type="search" id="a-title" placeholder="Priority name" style="flex:2;min-width:140px" />
     <select id="a-owner" class="owner-select" multiple size="3" style="min-width:140px;max-width:200px">
       ${OWNERS.map(o => `<option value="${o}">${o}</option>`).join('')}
     </select>
